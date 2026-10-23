@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="kn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shri BG Printers — Scratch & Win</title>
+<style>
+  :root { --navy:#10152f; --gold:#ffd45c; --pink:#ff477e; }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; min-height:100vh; padding:22px 14px;
+    font-family:system-ui,-apple-system,"Noto Sans Kannada",sans-serif;
+    color:#fff; text-align:center;
+    background:radial-gradient(circle at top,#5633a4 0,#171638 48%,#090b19 100%);
+  }
+  .wrap { max-width:440px; margin:0 auto; }
+  .brand { font-size:clamp(24px,6vw,34px); font-weight:900; line-height:1.15; color:var(--gold); }
+  .city { margin-top:7px; color:#e8e6ff; }
+  .badge { display:inline-block; margin:18px 0 8px; padding:8px 16px; border-radius:999px;
+           color:#25143d; background:var(--gold); font-weight:900; letter-spacing:1px; }
+  h1 { font-size:30px; margin:8px 0; }
+  .sub { color:#e5e1ff; margin:0 auto 20px; line-height:1.6; }
+  .card { background:#fff; color:#17152b; border:4px solid var(--gold); border-radius:24px;
+          padding:17px; box-shadow:0 14px 40px #0007; }
+  .scratch-area { position:relative; height:190px; border-radius:16px; overflow:hidden; background:#fff4cc; }
+  #prize {
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:12px; color:#20133e; font-weight:900;
+  }
+  #prize .emoji { font-size:40px; }
+  #prize .win { font-size:25px; color:#d91e63; }
+  #prize .small { font-size:13px; font-weight:600; margin-top:8px; }
+  canvas { position:absolute; inset:0; width:100%; height:100%; touch-action:none; cursor:crosshair; }
+  .hint { margin:12px 0 4px; font-size:14px; color:#55506a; }
+  .status { min-height:26px; margin:14px 0 0; font-weight:800; color:#ffe68e; }
+  .contact { margin-top:22px; line-height:1.8; }
+  .contact strong { color:var(--gold); }
+  .fine { margin-top:15px; color:#c6c2e6; font-size:11px; line-height:1.5; }
+  button { border:0; border-radius:999px; padding:12px 20px; font-size:15px; font-weight:800;
+           background:var(--pink); color:#fff; margin-top:12px; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">SHRI BG PRINTERS</div>
+  <div class="city">Vijayapura</div>
+  <div class="badge">SPECIAL OFFER</div>
+  <h1>🎁 SCRATCH &amp; WIN! 🎁</h1>
+  <p class="sub">ಸ್ಕ್ರ್ಯಾಚ್ ಮಾಡಿ ನಿಮ್ಮ ಆಫರ್ ತಿಳಿದುಕೊಳ್ಳಿ!<br>Scratch the card with your finger.</p>
+
+  <div class="card">
+    <div class="scratch-area" id="scratchArea">
+      <div id="prize">
+        <div class="emoji" id="prizeEmoji">🎁</div>
+        <div class="win" id="prizeText">ನಿಮ್ಮ ಬಹುಮಾನ ಇಲ್ಲಿ ಕಾಣಿಸುತ್ತದೆ!</div>
+        <div class="small" id="prizeNote">Scratch the silver layer to reveal your offer.</div>
+      </div>
+      <canvas id="scratchCanvas" aria-label="Scratch here to reveal your prize"></canvas>
+    </div>
+    <div class="hint" id="hint">☝️ ಇಲ್ಲಿ ಬೆರಳಿನಿಂದ ಸ್ಕ್ರ್ಯಾಚ್ ಮಾಡಿ</div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="contact">
+    📞 WhatsApp &amp; Call: <strong>8088379963</strong><br>
+    📸 Instagram: <strong>@Shri_bg_printers</strong>
+  </div>
+  <div class="fine">
+    Offer is subject to store terms. Please show the revealed offer to Shri BG Printers before redemption.
+  </div>
+</div>
+<script>
+(() => {
+  const key = "shriBGscratch_v1";
+  const canvas = document.getElementById("scratchCanvas");
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const area = document.getElementById("scratchArea");
+  const status = document.getElementById("status");
+  const hint = document.getElementById("hint");
+  const prizeText = document.getElementById("prizeText");
+  const prizeEmoji = document.getElementById("prizeEmoji");
+  const prizeNote = document.getElementById("prizeNote");
+  let drawing = false, revealed = false, lastCheck = 0;
+
+  const prizes = [
+    {text:"₹50 OFF", emoji:"🎉", note:"Show this offer at Shri BG Printers."},
+    {text:"₹100 OFF", emoji:"🏆", note:"Show this offer at Shri BG Printers."},
+    {text:"T-Shirt Offer", emoji:"👕", note:"Ask in-store for the available T-shirt offer."},
+    {text:"Photo Frame Offer", emoji:"🖼️", note:"Ask in-store for the available photo-frame offer."},
+    {text:"Better Luck Next Time!", emoji:"😊", note:"Thank you for visiting Shri BG Printers!"}
+  ];
+
+  function resizeCanvas() {
+    const rect = area.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(rect.width * dpr);
+    canvas.height = Math.round(rect.height * dpr);
+    canvas.style.width = rect.width + "px";
+    canvas.style.height = rect.height + "px";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawCover(rect.width, rect.height);
+  }
+  function drawCover(w, h) {
+    ctx.globalCompositeOperation = "source-over";
+    const grad = ctx.createLinearGradient(0, 0, w, h);
+    grad.addColorStop(0, "#d9d9df"); grad.addColorStop(.5, "#8e8e9b"); grad.addColorStop(1, "#eeeeF4");
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "#29253b"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = "900 22px system-ui, sans-serif";
+    ctx.fillText("SCRATCH HERE", w/2, h/2 - 12);
+    ctx.font = "bold 13px system-ui, sans-serif";
+    ctx.fillText("ಸ್ಕ್ರ್ಯಾಚ್ ಮಾಡಿ", w/2, h/2 + 18);
+    // decorative stars
+    ctx.fillStyle = "#fff";
+    for (let i=0;i<18;i++) {
+      const x = (i*47+19)%w, y = (i*31+13)%h;
+      ctx.beginPath(); ctx.arc(x,y,1.5,0,Math.PI*2); ctx.fill();
+    }
+  }
+  function choosePrize() {
+    const saved = localStorage.getItem(key);
+    if (saved) return JSON.parse(saved);
+    const p = prizes[Math.floor(Math.random() * prizes.length)];
+    const record = {...p, id: "BG-" + Math.random().toString(36).slice(2,8).toUpperCase(), date: new Date().toISOString()};
+    localStorage.setItem(key, JSON.stringify(record));
+    return record;
+  }
+  function showPrize(p) {
+    prizeText.textContent = p.text;
+    prizeEmoji.textContent = p.emoji;
+    prizeNote.textContent = "Offer code: " + p.id + " · Show this screen in store.";
+    status.textContent = "ಬಹುಮಾನ ಬಹಿರಂಗವಾಗಿದೆ! / Prize revealed!";
+    hint.textContent = "ಈ ಆಫರ್ ಕೋಡ್ ಅನ್ನು ಅಂಗಡಿಯಲ್ಲಿ ತೋರಿಸಿ.";
+  }
+  function point(e) {
+    const r = canvas.getBoundingClientRect();
+    return {x:e.clientX-r.left, y:e.clientY-r.top};
+  }
+  function scratch(e) {
+    if (!drawing || revealed) return;
+    const p = point(e);
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath(); ctx.arc(p.x, p.y, 19, 0, Math.PI*2); ctx.fill();
+    const now = Date.now();
+    if (now - lastCheck > 250) { lastCheck = now; checkProgress(); }
+  }
+  function checkProgress() {
+    const w = canvas.width, h = canvas.height;
+    const pixels = ctx.getImageData(0,0,w,h).data;
+    let clear = 0, total = 0;
+    for (let i=3;i<pixels.length;i+=4) { total++; if (pixels[i] < 100) clear++; }
+    if (total && clear/total > 0.42) {
+      revealed = true;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      canvas.style.display = "none";
+      const p = choosePrize();
+      showPrize(p);
+    }
+  }
+  canvas.addEventListener("pointerdown", e => {
+    if (localStorage.getItem(key)) {
+      const p = JSON.parse(localStorage.getItem(key)); showPrize(p);
+      revealed = true; canvas.style.display = "none"; return;
+    }
+    drawing = true; canvas.setPointerCapture(e.pointerId); scratch(e);
+  });
+  canvas.addEventListener("pointermove", scratch);
+  ["pointerup","pointercancel","lostpointercapture"].forEach(ev => canvas.addEventListener(ev, () => drawing = false));
+  window.addEventListener("resize", () => { if (!revealed) resizeCanvas(); });
+
+  const existing = localStorage.getItem(key);
+  if (existing) {
+    showPrize(JSON.parse(existing));
+    revealed = true;
+    canvas.style.display = "none";
+    hint.textContent = "ಈ ಸಾಧನದಲ್ಲಿ ಈಗಾಗಲೇ ಸ್ಕ್ರ್ಯಾಚ್ ಮಾಡಲಾಗಿದೆ.";
+  } else {
+    resizeCanvas();
+  }
+})();
+</script>
+</body>
+</html>
